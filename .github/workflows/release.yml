@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from mod
+        id: ver
+        run: |
+          VERSION=$(grep -m1 "AutoScanSystem v" AutoScanSystem/Scripts/main.lua | grep -oP 'v[0-9.]+')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Package mod
+        run: zip -r AutoScanSystem-${{ steps.ver.outputs.version }}.zip AutoScanSystem/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.version }}
+          name: AutoScanSystem ${{ steps.ver.outputs.version }}
+          files: AutoScanSystem-${{ steps.ver.outputs.version }}.zip
+          make_latest: true
