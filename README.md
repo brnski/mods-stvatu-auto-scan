@@ -48,8 +48,12 @@ When you scan a POI in a system, the mod detects the completed scan and propagat
        └── main.lua
    ```
 
-2. **Launch the game.** No further configuration needed.
-   The mod loads automatically because `enabled.txt` is present.
+2. Open `Win64\ue4ss\Mods\mods.txt` and add the following line:
+   ```
+   AutoScanSystem : 1
+   ```
+
+3. **Launch the game.**
 
 To verify it's running, open the UE4SS console — you should see:
 ```
