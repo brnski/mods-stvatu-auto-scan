@@ -19,7 +19,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Package mod
-        run: zip -r AutoScanSystem-${{ steps.ver.outputs.version }}.zip AutoScanSystem/
+        run: zip -r AutoScanSystem-${{ steps.ver.outputs.version }}.zip AutoScanSystem/ UE4SS_Signatures/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
