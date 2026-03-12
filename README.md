@@ -22,38 +22,38 @@ When you scan a POI in a system, the mod detects the completed scan and propagat
    ```
    <Steam>\steamapps\common\Star Trek Voyager - Across the Unknown\STVoyager\Binaries\Win64\
    ```
-   After copying, the folder should contain at minimum:
+4. Open `ue4ss\UE4SS-settings.ini` in a text editor and confirm these values are set:
+   ```ini
+   [General]
+   bUseUObjectArrayCache = false
+
+   [EngineVersionOverride]
+   MajorVersion = 5
+   MinorVersion = 6
    ```
-   Win64\
-   ├── dwmapi.dll          ← UE4SS proxy DLL
-   ├── ue4ss\
-   │   ├── UE4SS.dll
-   │   ├── Mods\
-   │   └── ...
-   └── STVoyager-Win64-Shipping.exe
-   ```
-4. Launch the game once to confirm UE4SS loads (a console window will appear, or check `ue4ss\UE4SS.log`).
+5. Launch the game once to confirm UE4SS loads — check `ue4ss\UE4SS.log` for `[UE4SS]` startup lines.
 
 ### Step 2 — Install AutoScanSystem
 
-1. Copy the `AutoScanSystem\` folder from this repo into the UE4SS mods directory:
-   ```
-   Win64\ue4ss\Mods\AutoScanSystem\
-   ```
+1. From the release zip, copy both folders into `Win64\ue4ss\`:
+   - `AutoScanSystem\` → `Win64\ue4ss\Mods\AutoScanSystem\`
+   - `UE4SS_Signatures\` → `Win64\ue4ss\UE4SS_Signatures\`
+
    The final structure should be:
    ```
-   AutoScanSystem\
-   ├── enabled.txt
-   └── Scripts\
-       └── main.lua
+   Win64\ue4ss\
+   ├── Mods\
+   │   └── AutoScanSystem\
+   │       ├── enabled.txt
+   │       └── Scripts\
+   │           └── main.lua
+   └── UE4SS_Signatures\
+       └── StaticConstructObject.lua
    ```
 
 2. **Launch the game.**
 
-To verify it's running, open the UE4SS console — you should see:
-```
-[AutoScanSystem] v1.1 loaded
-```
+To verify it's running, check `ue4ss\UE4SS.log` — you should see `[AutoScanSystem] v1.2 loaded`.
 
 ## Compatibility
 
@@ -62,7 +62,7 @@ To verify it's running, open the UE4SS console — you should see:
 
 ## Version
 
-**v1.1** — see [Releases](../../releases) for changelog.
+**v1.2** — see [Releases](../../releases) for changelog.
 
 ## License
 
