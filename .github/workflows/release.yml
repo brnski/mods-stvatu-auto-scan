@@ -28,3 +28,76 @@ jobs:
           name: AutoScanSystem ${{ steps.ver.outputs.version }}
           files: AutoScanSystem-${{ steps.ver.outputs.version }}.zip
           make_latest: true
+
+      # ── Nexus Mods upload ────────────────────────────────────────────────────
+      # Requires NEXUS_API_KEY secret. Uses the Nexus Mods v3 API:
+      #   1. Create an upload session → get upload_id + presigned S3 URL
+      #   2. PUT the zip to S3
+      #   3. Finalise the upload session
+      #   4. Get the mod's file-update-group (created on first upload via web UI)
+      #   5. Post as a new version in that group (or create a new file if no group exists)
+      #
+      # NOTE: mod_id "25" is the integer from the Nexus URL. If the v3 API requires
+      # a UUID instead, retrieve it via: GET /v3/games/startrekvoyageracrosstheunknown/mods/25
+
+      - name: Create Nexus upload session
+        id: nexus_upload
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
+        run: |
+          ZIPFILE="AutoScanSystem-${{ steps.ver.outputs.version }}.zip"
+          SIZE=$(stat -c%s "$ZIPFILE")
+          RESPONSE=$(curl -sf -X POST "https://api.nexusmods.com/v3/uploads" \
+            -H "apikey: $NEXUS_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"size_bytes\": $SIZE, \"filename\": \"$ZIPFILE\"}")
+          echo "upload_id=$(echo "$RESPONSE" | jq -r '.id')" >> $GITHUB_OUTPUT
+          echo "presigned_url=$(echo "$RESPONSE" | jq -r '.presigned_url')" >> $GITHUB_OUTPUT
+
+      - name: Upload zip to S3
+        run: |
+          curl -sf -X PUT "${{ steps.nexus_upload.outputs.presigned_url }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@AutoScanSystem-${{ steps.ver.outputs.version }}.zip"
+
+      - name: Finalise Nexus upload
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
+        run: |
+          curl -sf -X POST "https://api.nexusmods.com/v3/uploads/${{ steps.nexus_upload.outputs.upload_id }}/finalise" \
+            -H "apikey: $NEXUS_API_KEY" \
+            -H "Content-Type: application/json"
+
+      - name: Get Nexus file update group
+        id: nexus_group
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
+        run: |
+          RESPONSE=$(curl -sf "https://api.nexusmods.com/v3/mods/25/file-update-groups" \
+            -H "apikey: $NEXUS_API_KEY")
+          echo "Response: $RESPONSE"
+          GROUP_ID=$(echo "$RESPONSE" | jq -r 'if type == "array" and length > 0 then .[0].id else "" end')
+          echo "group_id=$GROUP_ID" >> $GITHUB_OUTPUT
+
+      - name: Publish to Nexus Mods
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          UPLOAD_ID="${{ steps.nexus_upload.outputs.upload_id }}"
+          GROUP_ID="${{ steps.nexus_group.outputs.group_id }}"
+          DISPLAY_VERSION="${VERSION#v}"
+
+          if [ -n "$GROUP_ID" ]; then
+            echo "Publishing as new version in update group $GROUP_ID"
+            curl -sf -X POST "https://api.nexusmods.com/v3/mod-file-update-groups/$GROUP_ID/versions" \
+              -H "apikey: $NEXUS_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"upload_id\": \"$UPLOAD_ID\", \"name\": \"AutoScanSystem $VERSION\", \"version\": \"$DISPLAY_VERSION\", \"file_category\": \"main\"}"
+          else
+            echo "No update group found — creating new mod file"
+            curl -sf -X POST "https://api.nexusmods.com/v3/mod-files" \
+              -H "apikey: $NEXUS_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"upload_id\": \"$UPLOAD_ID\", \"mod_id\": \"25\", \"name\": \"AutoScanSystem $VERSION\", \"version\": \"$DISPLAY_VERSION\", \"file_category\": \"main\"}"
+          fi
