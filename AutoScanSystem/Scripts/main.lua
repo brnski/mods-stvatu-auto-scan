@@ -1,4 +1,4 @@
--- AutoScanSystem v1.2
+-- AutoScanSystem v1.3
 -- Scans all POIs in a solar system automatically when the player scans any one of them.
 -- Compatible with UE4SS experimental build for UE 5.6.
 -- Author: see Nexus Mods page
@@ -71,10 +71,12 @@ local function propagate(pawn)
                 pawn:TryToScanPOI(entry.poi)
             end
         end)
-        ExecuteWithDelay(150, scanNext)
+        -- 300ms between scans; gives the game time to settle each scan's
+        -- animations, audio, UI updates, and state changes before the next.
+        ExecuteWithDelay(300, scanNext)
     end
 
-    ExecuteWithDelay(100, scanNext)
+    ExecuteWithDelay(200, scanNext)
 end
 
 local function findPawn()
@@ -278,4 +280,4 @@ ExecuteWithDelay(1000, function()
     tryRegisterHooks()
 end)
 
-log("v1.2 loaded")
+log("v1.3 loaded")
