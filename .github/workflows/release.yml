@@ -31,14 +31,23 @@ jobs:
 
       # ── Nexus Mods upload ────────────────────────────────────────────────────
       # Requires NEXUS_API_KEY secret. Uses the Nexus Mods v3 API:
-      #   1. Create an upload session → get upload_id + presigned S3 URL
-      #   2. PUT the zip to S3
-      #   3. Finalise the upload session
-      #   4. Get the mod's file-update-group (created on first upload via web UI)
-      #   5. Post as a new version in that group (or create a new file if no group exists)
-      #
-      # NOTE: mod_id "25" is the integer from the Nexus URL. If the v3 API requires
-      # a UUID instead, retrieve it via: GET /v3/games/startrekvoyageracrosstheunknown/mods/25
+      #   1. Look up the mod's global UUID via game domain + integer ID
+      #   2. Create an upload session → get upload_id + presigned S3 URL
+      #   3. PUT the zip to S3
+      #   4. Finalise the upload session
+      #   5. Get the mod's file-update-group
+      #   6. Post as a new version in that group (or create a new file if no group exists)
+
+      - name: Get Nexus mod UUID
+        id: nexus_mod
+        env:
+          NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
+        run: |
+          RESPONSE=$(curl -s "https://api.nexusmods.com/v3/games/startrekvoyageracrosstheunknown/mods/25" \
+            -H "apikey: $NEXUS_API_KEY")
+          echo "Response: $RESPONSE"
+          MOD_ID=$(echo "$RESPONSE" | jq -r '.id')
+          echo "mod_id=$MOD_ID" >> $GITHUB_OUTPUT
 
       - name: Create Nexus upload session
         id: nexus_upload
@@ -73,7 +82,8 @@ jobs:
         env:
           NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
         run: |
-          RESPONSE=$(curl -sf "https://api.nexusmods.com/v3/mods/25/file-update-groups" \
+          MOD_ID="${{ steps.nexus_mod.outputs.mod_id }}"
+          RESPONSE=$(curl -s "https://api.nexusmods.com/v3/mods/$MOD_ID/file-update-groups" \
             -H "apikey: $NEXUS_API_KEY")
           echo "Response: $RESPONSE"
           GROUP_ID=$(echo "$RESPONSE" | jq -r 'if type == "array" and length > 0 then .[0].id else "" end')
@@ -86,6 +96,7 @@ jobs:
           VERSION="${{ steps.ver.outputs.version }}"
           UPLOAD_ID="${{ steps.nexus_upload.outputs.upload_id }}"
           GROUP_ID="${{ steps.nexus_group.outputs.group_id }}"
+          MOD_ID="${{ steps.nexus_mod.outputs.mod_id }}"
           DISPLAY_VERSION="${VERSION#v}"
 
           if [ -n "$GROUP_ID" ]; then
@@ -99,5 +110,5 @@ jobs:
             curl -sf -X POST "https://api.nexusmods.com/v3/mod-files" \
               -H "apikey: $NEXUS_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "{\"upload_id\": \"$UPLOAD_ID\", \"mod_id\": \"25\", \"name\": \"AutoScanSystem $VERSION\", \"version\": \"$DISPLAY_VERSION\", \"file_category\": \"main\"}"
+              -d "{\"upload_id\": \"$UPLOAD_ID\", \"mod_id\": \"$MOD_ID\", \"name\": \"AutoScanSystem $VERSION\", \"version\": \"$DISPLAY_VERSION\", \"file_category\": \"main\"}"
           fi
