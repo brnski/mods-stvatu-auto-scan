@@ -99,16 +99,27 @@ jobs:
           MOD_ID="${{ steps.nexus_mod.outputs.mod_id }}"
           DISPLAY_VERSION="${VERSION#v}"
 
+          # Use README as the file description (the v3 API has no separate changelog field)
+          DESCRIPTION=$(cat README.md)
+
+          BODY=$(jq -n \
+            --arg upload_id "$UPLOAD_ID" \
+            --arg name "AutoScanSystem $VERSION" \
+            --arg version "$DISPLAY_VERSION" \
+            --arg description "$DESCRIPTION" \
+            '{upload_id: $upload_id, name: $name, version: $version, file_category: "main", description: $description}')
+
           if [ -n "$GROUP_ID" ]; then
             echo "Publishing as new version in update group $GROUP_ID"
             curl -sf -X POST "https://api.nexusmods.com/v3/mod-file-update-groups/$GROUP_ID/versions" \
               -H "apikey: $NEXUS_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "{\"upload_id\": \"$UPLOAD_ID\", \"name\": \"AutoScanSystem $VERSION\", \"version\": \"$DISPLAY_VERSION\", \"file_category\": \"main\"}"
+              -d "$BODY"
           else
             echo "No update group found — creating new mod file"
+            BODY=$(echo "$BODY" | jq --arg mod_id "$MOD_ID" '. + {mod_id: $mod_id}')
             curl -sf -X POST "https://api.nexusmods.com/v3/mod-files" \
               -H "apikey: $NEXUS_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "{\"upload_id\": \"$UPLOAD_ID\", \"mod_id\": \"$MOD_ID\", \"name\": \"AutoScanSystem $VERSION\", \"version\": \"$DISPLAY_VERSION\", \"file_category\": \"main\"}"
+              -d "$BODY"
           fi
