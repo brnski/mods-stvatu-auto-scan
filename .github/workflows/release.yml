@@ -43,7 +43,7 @@ jobs:
         env:
           NEXUS_API_KEY: ${{ secrets.NEXUS_API_KEY }}
         run: |
-          RESPONSE=$(curl -s "https://api.nexusmods.com/v3/games/startrekvoyageracrosstheunknown/mods/25" \
+          RESPONSE=$(curl -s "https://api.nexusmods.com/v3/games/${{ vars.NEXUS_GAME_DOMAIN }}/mods/${{ vars.NEXUS_MOD_ID }}" \
             -H "apikey: $NEXUS_API_KEY")
           echo "Response: $RESPONSE"
           MOD_ID=$(echo "$RESPONSE" | jq -r '.id')
